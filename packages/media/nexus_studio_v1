@@ -1,0 +1,485 @@
+#!/usr/bin/env bash
+# ═══════════════════════════════════════════════════════════════════════════
+# NEXUS FILM STUDIO — LAUNCHER PROTOCOL OMEGA 2900
+# Auteur : Aissa Mohammedi (DGK)
+# Version : 8.0.0
+# Licence : NEXUS-OPEN-2.0
+# ═══════════════════════════════════════════════════════════════════════════
+
+set -euo pipefail
+
+# ───────────────────────────────────────────────────────────────────────────
+# CONSTANTES
+# ───────────────────────────────────────────────────────────────────────────
+
+readonly VERSION="8.0.0"
+readonly PROTOCOL="OMEGA 2900"
+readonly SCRIPT_NAME="$(basename "${BASH_SOURCE[0]}")"
+readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly PYTHON_SCRIPT="${SCRIPT_DIR}/nexus_film_studio.py"
+readonly PID_FILE="/tmp/nexus_film_${$}.pid"
+readonly LOG_FILE="${SCRIPT_DIR}/.nexus_launch.log"
+readonly DEFAULT_PORTS=("8095" "8096" "8097" "8098" "8099" "3800" "8080" "8000")
+
+# ───────────────────────────────────────────────────────────────────────────
+# COULEURS & FORMATAGE
+# ───────────────────────────────────────────────────────────────────────────
+
+readonly RESET="\033[0m"
+readonly RED="\033[31m"
+readonly GREEN="\033[32m"
+readonly YELLOW="\033[33m"
+readonly BLUE="\033[34m"
+readonly CYAN="\033[36m"
+readonly MAGENTA="\033[35m"
+readonly BOLD="\033[1m"
+
+info()   { printf "${BLUE}[ℹ]${RESET} %s\n" "$*"; }
+warn()   { printf "${YELLOW}[⚠]${RESET} %s\n" "$*"; }
+error()  { printf "${RED}[✕]${RESET} %s\n" "$*" >&2; }
+success(){ printf "${GREEN}[✓]${RESET} %s\n" "$*"; }
+step()   { printf "\n${CYAN}▸${RESET} %s\n" "$*"; }
+
+# ───────────────────────────────────────────────────────────────────────────
+# UTILITAIRES
+# ───────────────────────────────────────────────────────────────────────────
+
+log_json() {
+    local level="$1"
+    shift
+    local ts
+    ts="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+    printf '{"ts":"%s","lvl":"%s","src":"omega_launcher","msg":"%s"}\n' \
+        "$ts" "$level" "$*" >> "$LOG_FILE"
+}
+
+die() {
+    error "$@"
+    log_json "error" "$*"
+    cleanup
+    exit 1
+}
+
+cleanup() {
+    if [[ -f "$PID_FILE" ]]; then
+        local pid
+        pid=$(cat "$PID_FILE" 2>/dev/null)
+        if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
+            info "Arrêt du processus (PID: $pid)..."
+            kill "$pid" 2>/dev/null || true
+            sleep 1
+            kill -9 "$pid" 2>/dev/null || true
+        fi
+        rm -f "$PID_FILE"
+    fi
+}
+
+trap 'die "Interruption"' INT TERM
+trap cleanup EXIT
+
+detect_python() {
+    for cmd in python3 python; do
+        if command -v "$cmd" >/dev/null 2>&1; then
+            local version
+            version=$("$cmd" --version 2>&1 | awk '{print $2}')
+            echo "$cmd:$version"
+            return 0
+        fi
+    done
+    return 1
+}
+
+is_port_available() {
+    local port="$1"
+    ! ss -tuln 2>/dev/null | grep -q ":${port} " && \
+    ! netstat -tuln 2>/dev/null | grep -q ":${port} "
+}
+
+find_free_port() {
+    for port in "${DEFAULT_PORTS[@]}"; do
+        if is_port_available "$port"; then
+            echo "$port"
+            return 0
+        fi
+    done
+    warn "Tous les ports standards occupés. Essayons aléatoirement..."
+    local rand_port=$((RANDOM % 8999 + 9000))
+    echo "$rand_port"
+}
+
+check_requirements() {
+    step "Vérification des prérequis..."
+    
+    local python_info
+    if ! python_info="$(detect_python)"; then
+        die "Python 3 non trouvé. Installez Python 3.8+"
+    fi
+    
+    local python_path="${python_info%%:*}"
+    local python_version="${python_info##*:}"
+    
+    info "Python détecté : ${python_version} (${python_path})"
+    
+    if [[ ! -f "$PYTHON_SCRIPT" ]]; then
+        die "Script Python introuvable : ${PYTHON_SCRIPT}"
+    fi
+    
+    success "Prérequis validés"
+}
+
+show_banner() {
+    cat << 'EOF'
+
+    ███████╗ ██████╗ ███╗   ██╗████████╗ █████╗ ████████╗ █████╗ 
+    ██╔════╝██╔═══██╗████╗  ██║╚══██╔══╝██╔══██╗╚══██╔══╝██╔══██╗
+    ███████╗██║   ██║██╔██╗ ██║   ██║   ███████║   ██║   ███████║
+    ╚════██║██║   ██║██║╚██╗██║   ██║   ██╔══██║   ██║   ██╔══██║
+    ███████║╚██████╔╝██║ ╚████║   ██║   ██║  ██║   ██║   ██║  ██║
+    ╚══════╝ ╚═════╝ ╚═╝  ╚═══╝   ╚═╝   ╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝
+    
+         ███████╗  ██████╗  ███╗   ██╗███╗   ██╗███████╗██████╗ 
+         ╚══███╔╝ ██╔═══██╗ ████╗  ██║████╗  ██║██╔════╝██╔══██╗
+           ███╔╝  ██║   ██║ ██╔██╗ ██║██╔██╗ ██║█████╗  ██████╔╝
+          ███╔╝   ██║   ██║ ██║╚██╗██║██║╚██╗██║██╔══╝  ██╔══██╗
+         ███████╗ ╚██████╔╝ ██║ ╚████║██║ ╚████║███████╗██║  ██║
+         ╚══════╝  ╚═════╝  ╚═╝  ╚═══╝╚═╝  ╚═══╝╚══════╝╚═╝  ╚═╝
+
+        PROTOCOL OMEGA 2900 • NEXUS FILM STUDIO v8.0.0
+        Auteur : Aissa Mohammedi (DGK)
+        Licence : NEXUS-OPEN-2.0
+
+EOF
+}
+
+show_help() {
+    cat << HELP
+${SCRIPT_NAME} v${VERSION} — NEXUS FILM STUDIO LAUNCHER
+
+Usage: ${SCRIPT_NAME} [OPTIONS] [COMMAND]
+
+Options:
+  -h, --help            Afficher cette aide
+  -v, --version         Afficher la version
+  -p, --port PORT       Spécifier le port (défaut: auto)
+  -H, --host HOST       Interface réseau (défaut: 0.0.0.0)
+  -d, --debug           Activer le mode débogage
+  -q, --quiet           Mode silencieux
+  --force-port          Forcer le port sans auto-détection
+  --no-banner           Masquer le bannière
+  --kill-old            Tuer instance précédente avant démarrage
+  --background          Lancer en arrière-plan
+  --foreground          Lancer au premier plan (défaut)
+
+Commandes:
+  start                 Démarrer le studio
+  stop                  Arrêter le studio
+  status                Afficher l'état
+  restart               Redémarrer
+  logs                  Afficher les logs en temps réel
+  health                Vérification santé système
+
+Variables d'environnement:
+  NEXUS_PORT            Port serveur
+  NEXUS_HOST            Interface réseau
+  NEXUS_DEBUG           Mode debug (1/0)
+  NEXUS_LOG_LEVEL       Niveau log (DEBUG/INFO/WARNING/ERROR)
+  NEXUS_MAX_THREADS     Threads max (défaut: 3)
+  NEXUS_API_TIMEOUT     Timeout APIs (défaut: 45s)
+
+Exemples:
+  ${SCRIPT_NAME} start                          # Auto-détection port
+  ${SCRIPT_NAME} start -p 8095                  # Port spécifique
+  ${SCRIPT_NAME} start --host 0.0.0.0 --port 3800 # Réseau complet
+  ${SCRIPT_NAME} stop                           # Arrêter proprement
+  ${SCRIPT_NAME} logs                           # Suivre logs
+
+HELP
+}
+
+show_status() {
+    info "État du système NEXUS..."
+    
+    if [[ -f "$PID_FILE" ]]; then
+        local pid
+        pid=$(cat "$PID_FILE")
+        if kill -0 "$pid" 2>/dev/null; then
+            success "Studio actif (PID: $pid)"
+            
+            local port=""
+            if [[ -f "${SCRIPT_DIR}/.nexus_config" ]]; then
+                port=$(grep "PORT=" "${SCRIPT_DIR}/.nexus_config" 2>/dev/null | cut -d= -f2 || echo "?")
+            fi
+            
+            if [[ -n "$port" ]]; then
+                local ip
+                ip=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "localhost")
+                echo "  URL locale : http://localhost:${port}/"
+                echo "  URL réseau : http://${ip}:${port}/"
+            fi
+            return 0
+        else
+            warn "PID enregistré mais processus inexistant"
+            rm -f "$PID_FILE"
+            return 1
+        fi
+    else
+        info "Studio arrêté"
+        return 1
+    fi
+}
+
+kill_old_instance() {
+    info "Recherche d'instances anciennes..."
+    
+    local killed=0
+    
+    # Trouver tous les processus Nexus Film
+    while IFS= read -r line; do
+        if [[ -n "$line" ]]; then
+            local old_pid
+            old_pid=$(echo "$line" | awk '{print $1}')
+            if [[ -n "$old_pid" ]] && kill -0 "$old_pid" 2>/dev/null; then
+                info "Kill instance ancienne (PID: $old_pid)"
+                kill "$old_pid" 2>/dev/null || kill -9 "$old_pid" 2>/dev/null || true
+                ((killed++))
+            fi
+        fi
+    done < <(pgrep -af "nexus_film" 2>/dev/null || true)
+    
+    sleep 2
+    
+    if [[ $killed -gt 0 ]]; then
+        success "${killed} instance(s) arrêtée(s)"
+    else
+        info "Aucune instance trouvée"
+    fi
+}
+
+start_background() {
+    local port="${1:-}"
+    local host="${2:-0.0.0.0}"
+    local debug_flag="${3:-}"
+    
+    nohup "${PYTHON_PATH}" "${PYTHON_SCRIPT}" \
+        --port "$port" --host "$host" $debug_flag > /dev/null 2>&1 &
+    
+    local bg_pid=$!
+    echo "$bg_pid" > "$PID_FILE"
+    
+    info "Lancement en arrière-plan (PID: $bg_pid)"
+    
+    # Attendre quelques secondes pour validation
+    sleep 3
+    
+    if kill -0 "$bg_pid" 2>/dev/null; then
+        success "Studio démarré (PID: $bg_pid)"
+        show_status
+    else
+        die "Échec du démarrage en arrière-plan"
+    fi
+}
+
+show_logs() {
+    local log_file="${SCRIPT_DIR}/.nexus_launch.log"
+    
+    if [[ ! -f "$log_file" ]]; then
+        warn "Fichier de log introuvable : $log_file"
+        return 1
+    fi
+    
+    tail -f "$log_file"
+}
+
+health_check() {
+    step "Vérification santé système..."
+    
+    local python_info
+    if ! python_info="$(detect_python)"; then
+        warn "Python non détecté"
+        return 1
+    fi
+    
+    local python_path="${python_info%%:*}"
+    
+    # Tests d'import
+    if ! "$python_path" -c "import sys, os, json, threading, socket, ssl, hashlib" 2>/dev/null; then
+        warn "Modules Python manquants"
+        return 1
+    fi
+    
+    success "Système sain"
+    return 0
+}
+
+# ───────────────────────────────────────────────────────────────────────────
+# POINT D'ENTRÉE
+# ───────────────────────────────────────────────────────────────────────────
+
+main() {
+    COMMAND=""
+    PORT=""
+    HOST="0.0.0.0"
+    DEBUG_FLAG=""
+    SHOW_BANNER=true
+    FORCE_PORT=false
+    KILL_OLD=false
+    BACKGROUND=false
+    
+    # Parser arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -h|--help)
+                show_help
+                exit 0
+                ;;
+            -v|--version)
+                echo "v${VERSION}"
+                exit 0
+                ;;
+            -p|--port)
+                PORT="$2"
+                shift 2
+                ;;
+            -H|--host)
+                HOST="$2"
+                shift 2
+                ;;
+            -d|--debug)
+                DEBUG_FLAG="--debug"
+                shift
+                ;;
+            -q|--quiet)
+                LOG_LEVEL="WARNING"
+                shift
+                ;;
+            --force-port)
+                FORCE_PORT=true
+                shift
+                ;;
+            --no-banner)
+                SHOW_BANNER=false
+                shift
+                ;;
+            --kill-old)
+                KILL_OLD=true
+                shift
+                ;;
+            --background)
+                BACKGROUND=true
+                shift
+                ;;
+            --foreground)
+                BACKGROUND=false
+                shift
+                ;;
+            start|stop|restart|status|logs|health)
+                COMMAND="$1"
+                shift
+                break
+                ;;
+            *)
+                warn "Argument inconnu: $1"
+                shift
+                ;;
+        esac
+    done
+    
+    # Commande par défaut
+    if [[ -z "${COMMAND:-}" ]]; then
+        COMMAND="start"
+    fi
+    
+    # Banner
+    if [[ "$SHOW_BANNER" == true ]]; then
+        show_banner
+    fi
+    
+    # Détection Python
+    local python_info
+    if ! python_info="$(detect_python)"; then
+        die "Python 3 non trouvé"
+    fi
+    
+    PYTHON_PATH="${python_info%%:*}"
+    
+    case "$COMMAND" in
+        start)
+            check_requirements
+            
+            if [[ "$KILL_OLD" == true ]]; then
+                kill_old_instance
+            fi
+            
+            if [[ -z "$PORT" ]]; then
+                PORT=$(find_free_port)
+                info "Port auto-détecté: $PORT"
+            elif [[ "$FORCE_PORT" != true ]] && ! is_port_available "$PORT"; then
+                warn "Port $PORT occupé. Passage à $PORT+1"
+                PORT=$((PORT+1))
+            fi
+            
+            if [[ "$BACKGROUND" == true ]]; then
+                start_background "$PORT" "$HOST" "$DEBUG_FLAG"
+            else
+                step "Démarrage du studio..."
+                
+                info "Configuration:"
+                info "  Port : $PORT"
+                info "  Host : $HOST"
+                info "  Debug : $([[ -n "$DEBUG_FLAG" ]] && echo 'oui' || echo 'non')"
+                
+                echo "$$" > "$PID_FILE"
+                
+                log_json "info" "Starting NEXUS FILM STUDIO port=$port host=$host"
+                
+                exec "${PYTHON_PATH}" "${PYTHON_SCRIPT}" \
+                    --port "$PORT" --host "$HOST" $DEBUG_FLAG
+            fi
+            ;;
+        
+        stop)
+            if [[ -f "$PID_FILE" ]]; then
+                local pid
+                pid=$(cat "$PID_FILE")
+                if kill -0 "$pid" 2>/dev/null; then
+                    info "Arrêt (PID: $pid)..."
+                    kill "$pid" 2>/dev/null || kill -9 "$pid" 2>/dev/null || true
+                    sleep 2
+                    rm -f "$PID_FILE"
+                    success "Studio arrêté"
+                else
+                    warn "Processus inexistant"
+                    rm -f "$PID_FILE"
+                fi
+            else
+                info "Aucun PID enregistré"
+            fi
+            ;;
+        
+        restart)
+            "${SCRIPT_NAME}" stop
+            sleep 2
+            "${SCRIPT_NAME}" start --kill-old
+            ;;
+        
+        status)
+            show_status
+            ;;
+        
+        logs)
+            show_logs
+            ;;
+        
+        health)
+            health_check
+            ;;
+        
+        *)
+            error "Commande inconnue: $COMMAND"
+            show_help
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"
