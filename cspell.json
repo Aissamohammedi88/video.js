@@ -1,28 +1,158 @@
 {
+  // Version du schéma (Standard 2026)
   "version": "0.2",
-  "ignorePaths": ["package.json", "tsconfig.json", "packages/core/src/core/i18n/locales/!(all|en).ts"],
-  "dictionaryDefinitions": [],
-  "dictionaries": ["css", "html", "node", "typescript", "npm"],
+
+  // 1. LES ZONES D'OMBRE (Ignore totalement le bruit)
+  "ignorePaths": [
+    "package.json",
+    "tsconfig.json",
+    "pnpm-lock.yaml",
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/*.min.js",
+    "**/*.map",
+    // On ignore les locales sauf l'anglais (le master) et le fichier global
+    "packages/core/src/core/i18n/locales/!(all|en).ts"
+  ],
+
+  // 2. LES DICTIONNAIRES DE BASE (Les fondations)
+  "dictionaries": [
+    "css",
+    "html",
+    "node",
+    "typescript",
+    "npm",
+    "filetypes",
+    "softwareTerms"
+  ],
+
+  // 3. LES LANGUES PERSONNALISÉES
+  "languageSettings": [
+    {
+      // Pour les fichiers Markdown et MDX (docs)
+      "languageId": "markdown,mdx",
+      "ignoreRegExpList": [
+        "/```[\\s\\S]*?```/g", // Ignore le code dans les blocs
+        "/`[^`]*`/g",           // Ignore le code inline
+        "/https?:\\/\\/[^\\s)]+/g" // Ignore les URLs
+      ]
+    },
+    {
+      // Pour les fichiers YAML (Configs, CI/CD)
+      "languageId": "yaml,yml",
+      "ignoreRegExpList": [
+        "/\\b[a-f0-9]{7,40}\\b/g" // Ignore les hashes de commit
+      ]
+    }
+  ],
+
+  // 4. LE DICTIONNAIRE SOUVERAIN (Les mots de l'architecture)
   "words": [
-    "antfu",
-    "demuxed",
+    // --- PROTOCOLES & STANDARDS VIDÉO ---
     "hlsjs",
+    "dashjs",
+    "demuxed",
     "multivariant",
-    "nanostores",
-    "noautohide",
-    "noto",
-    "nums",
-    "oxlint",
-    "plyr",
-    "prefs",
-    "rahim",
-    "segoe",
-    "shiki",
-    "squircle",
+    "abr",              // Adaptive Bitrate
+    "drm",              // Digital Rights Management
+    "mse",              // Media Source Extensions
+    "eme",              // Encrypted Media Extensions
+    "cmaf",             // Common Media Application Format
+    "av1",              // AOMedia Video 1
+    "hevc",             // High Efficiency Video Coding
+    "vp9",              // Video Processor 9
+    "yuv",              // Color space
+    "rgb",              // Color space
+    "hdr",              // High Dynamic Range
+    "sdr",              // Standard Dynamic Range
+
+    // --- ARCHITECTURES & FRAMEWORKS ---
     "videojs",
     "vidstack",
-    "vjsc"
+    "plyr",
+    "shaka",            // Shaka Player (Google)
+    "rxjs",             // Reactive Extensions
+    "zod",              // Validation de schéma
+    "nanostores",
+    "solidjs",
+    "svelte",
+    "preact",
+
+    // --- OUTILS DE BUILD & LINTING ---
+    "oxlint",
+    "biome",
+    "vite",
+    "rollup",
+    "esbuild",
+    "swc",
+    "turbo",
+    "tsgo",
+
+    // --- ACRONYMES D'INFRASTRUCTURE ---
+    "cdn",
+    "edge",
+    "cors",
+    "csrf",
+    "xss",
+    "sqli",
+    "ssrf",
+    "ddos",
+    "jwt",
+    "oauth",
+
+    // --- L'AUTEUR & LES COLLABORATEURS (Tes références) ---
+    "Aissamohammedi",
+    "dgk",
+    "nexus",
+    "quantum",
+    "ultraconnect",
+    "nexusgen",
+    "cspell",
+
+    // --- UI / DESIGN ---
+    "squircle",         // Forme d'icône (Apple)
+    "noautohide",
+    "segoe",            // Police Windows
+    "noto",             // Police Google
+
+    // --- TERMES TECHNIQUES VIDSTACK & AUTRES ---
+    "antfu",            // Anthony Fu (Dev Vue/Vite)
+    "rahim",            // Rahim (Dev Vidstack)
+    "prefs",            // Preferences
+    "nums",             // Numbers
+    "vjsc",             // Alias interne
+    "noop",             // No Operation
+    "toggle",
+    "debounce",
+    "throttle",
+    "polyfill",
+    "fallback",
+    "hydration"
   ],
+
+  // 5. LES MOTS À IGNORER (Faux positifs connus)
   "ignoreWords": [],
+
+  // 6. LES PATTERNS REGEX (Le filtre ultime pour ne pas polluer le dictionnaire)
+  "patterns": [
+    {
+      "name": "typescript-types",
+      "pattern": "/\\b[A-Z][a-zA-Z0-9]*(Type|Props|State|Ref|Context|Provider|Handler|Event|Config|Options|Result|Response)\\b/g"
+    },
+    {
+      "name": "css-properties",
+      "pattern": "/\\b[a-z-]+:\\s/g"
+    },
+    {
+      "name": "html-attributes",
+      "pattern": "/\\b[a-z-]+=/g"
+    },
+    {
+      "name": "uuid",
+      "pattern": "/\\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\b/g"
+    }
+  ],
+
+  // 7. IMPORT (Pour l'écosystème)
   "import": []
 }
