@@ -1,30 +1,163 @@
-# Optional convenience for contributors who use mise (https://mise.jdx.dev).
-#
-# mise is not required. `.node-version`/`.nvmrc` (Node) and `packageManager`
-# (pnpm) stay the source of truth, so nvm, Volta, and CI never drift from this
-# file. See "Using mise" in CONTRIBUTING.md.
-min_version = "2025.4.6"
+/* ═══════════════════════════════════════════════════════════════════════════════
+   NEXUS CINEMA THEME FOR VIDEO.JS
+   Auteur : Aissa Mohammedi (DGK) - NEXUS-OPEN-3.0
+   Description : Thème cinématique, holographique et immersif.
+   ═══════════════════════════════════════════════════════════════════════════════ */
 
-[settings]
-# Resolve Node from `.nvmrc`/`.node-version` instead of duplicating the pin.
-# Idiomatic version files are opt-in per project, and older mise releases spell
-# this setting differently — `min_version` above turns that into a loud error
-# rather than a silently unpinned Node.
-idiomatic_version_file_enable_tools = ["node"]
+/* 1. Variables globales du thème */
+:root {
+    --nexus-bg: rgba(5, 8, 12, 0.85);
+    --nexus-primary: #00f3ff;
+    --nexus-secondary: #ff00ea;
+    --nexus-text: #e0f7fa;
+    --nexus-glow: 0 0 15px rgba(0, 243, 255, 0.5);
+    --nexus-font: 'Courier New', Courier, monospace;
+}
 
-[tools]
-# Mirrors `packageManager` in package.json; `pnpm check:workspace` enforces it.
-# Node is deliberately absent — see `[settings]` above.
-pnpm = "12.6.0"
+/* 2. Le conteneur principal du lecteur */
+.video-js {
+    font-family: var(--nexus-font);
+    background-color: #000;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8), 0 0 20px rgba(0, 243, 255, 0.1);
+    transition: box-shadow 0.3s ease;
+}
 
-[env]
-# Expose workspace binaries (biome, turbo, tsgo, prettier, tsx) directly, so
-# they can be invoked without a `pnpm exec` prefix.
-_.path = ["{{config_root}}/node_modules/.bin"]
+.video-js:hover {
+    box-shadow: 0 10px 50px rgba(0, 0, 0, 0.9), 0 0 30px rgba(0, 243, 255, 0.3);
+}
 
-# Personal, gitignored overrides. Skipped when the file does not exist.
-_.file = { path = ".env.local", redact = true }
+/* 3. La barre de contrôle (Glassmorphism) */
+.vjs-control-bar {
+    background: var(--nexus-bg) !important;
+    backdrop-filter: blur(10px) saturate(180%);
+    -webkit-backdrop-filter: blur(10px) saturate(180%);
+    border-top: 1px solid rgba(0, 243, 255, 0.2);
+    height: 4em !important;
+    padding: 0 10px;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+}
 
-[tasks.setup]
-description = "Install dependencies and build workspace packages"
-run = ["pnpm install", "pnpm build:packages"]
+/* 4. Bouton Play/Pause Principal (Centre) */
+.vjs-big-play-button {
+    background: rgba(0, 243, 255, 0.1) !important;
+    border: 2px solid var(--nexus-primary) !important;
+    border-radius: 50% !important;
+    width: 80px !important;
+    height: 80px !important;
+    line-height: 76px !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%);
+    box-shadow: var(--nexus-glow);
+    transition: all 0.3s ease;
+}
+
+.vjs-big-play-button:hover {
+    background: rgba(0, 243, 255, 0.3) !important;
+    transform: translate(-50%, -50%) scale(1.1);
+    box-shadow: 0 0 30px rgba(0, 243, 255, 0.8);
+}
+
+.vjs-big-play-button .vjs-icon-placeholder:before {
+    color: var(--nexus-primary);
+    font-size: 40px;
+    line-height: 76px;
+}
+
+/* 5. Boutons de contrôle (Style Néon) */
+.vjs-button {
+    color: var(--nexus-text) !important;
+    transition: color 0.2s ease, text-shadow 0.2s ease;
+}
+
+.vjs-button:hover {
+    color: var(--nexus-primary) !important;
+    text-shadow: var(--nexus-glow);
+}
+
+/* 6. Barre de progression (Timeline) */
+.vjs-progress-control {
+    position: absolute;
+    top: -5px;
+    left: 0;
+    right: 0;
+    width: 100%;
+    height: 5px;
+    transition: height 0.2s ease;
+}
+
+.vjs-progress-control:hover {
+    height: 10px;
+}
+
+.vjs-play-progress {
+    background: linear-gradient(90deg, var(--nexus-primary), var(--nexus-secondary)) !important;
+    box-shadow: 0 0 10px var(--nexus-primary);
+}
+
+.vjs-load-progress {
+    background: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* 7. Bouton Mute / Volume */
+.vjs-volume-panel {
+    background: transparent !important;
+}
+
+.vjs-volume-bar {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+.vjs-volume-level {
+    background-color: var(--nexus-primary);
+    box-shadow: 0 0 10px var(--nexus-primary);
+}
+
+/* 8. Temps (Current Time / Duration) */
+.vjs-current-time, .vjs-duration, .vjs-time-divider, .vjs-remaining-time {
+    color: var(--nexus-text);
+    font-size: 1.2em;
+    font-weight: bold;
+    text-shadow: 0 0 5px rgba(0, 243, 255, 0.5);
+}
+
+/* 9. Titre de la vidéo (Haut gauche) */
+.vjs-title {
+    background: linear-gradient(to right, transparent, rgba(0, 0, 0, 0.8)) !important;
+    color: var(--nexus-primary) !important;
+    padding: 10px 20px !important;
+    font-size: 1.5em !important;
+    text-shadow: var(--nexus-glow);
+    border-bottom: 1px solid rgba(0, 243, 255, 0.3);
+}
+
+/* 10. Animation d'apparition de la barre de contrôle */
+.vjs-user-inactive .vjs-control-bar {
+    opacity: 0;
+    transform: translateY(100%);
+}
+
+.vjs-user-active .vjs-control-bar {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* 11. Écran de chargement (Buffering) */
+.vjs-loading-spinner {
+    border: 4px solid rgba(0, 243, 255, 0.2);
+    border-top-color: var(--nexus-primary);
+    box-shadow: 0 0 20px var(--nexus-primary);
+}
+
+/* 12. Logo du lecteur (Watermark) */
+.vjs-logo {
+    filter: drop-shadow(0 0 10px var(--nexus-primary));
+    opacity: 0.8;
+    transition: opacity 0.3s ease;
+}
+
+.vjs-logo:hover {
+    opacity: 1;
+}
